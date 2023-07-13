@@ -1,53 +1,42 @@
 ﻿using System;
 using System.Threading;
-using static System.Console;
-using static System.Threading.Thread;
-
+using System.Threading.Tasks;
 namespace Chapter3.Recipe1
 {
-	class Program
-	{
-		static void Main(string[] args)
-		{
-			int threadId = 0;
+    class Program
+    {
+        static async Task Main(string[] args)
+        {
+            int threadId = 0;
 
-			RunOnThreadPool poolDelegate = Test;
+            // 使用 Task.Run() 方法将操作放入线程池中执行
+            var task = Task.Run(() => Test(out threadId));
+            await task;
 
-			var t = new Thread(() => Test(out threadId));
-			t.Start();
-			t.Join();
+            Console.WriteLine($"Thread id: {threadId}");
 
-			WriteLine($"Thread id: {threadId}");
+            // 使用 ThreadPool.QueueUserWorkItem() 方法将操作放入线程池中执行
+            ThreadPool.QueueUserWorkItem(Callback, "a delegate asynchronous call");
 
-			IAsyncResult r = poolDelegate.BeginInvoke(out threadId, Callback, "a delegate asynchronous call");
-			r.AsyncWaitHandle.WaitOne();
+            // 等待异步操作完成
+            await Task.Delay(TimeSpan.FromSeconds(2));
+        }
 
-			string result = poolDelegate.EndInvoke(out threadId, r);
-			
-			WriteLine($"Thread pool worker thread id: {threadId}");
-			WriteLine(result);
+        private static void Callback(object state)
+        {
+            Console.WriteLine("Starting a callback...");
+            Console.WriteLine($"State passed to a callbak: {state}");
+            Console.WriteLine($"Is thread pool thread: {Thread.CurrentThread.IsThreadPoolThread}");
+            Console.WriteLine($"Thread pool worker thread id: {Thread.CurrentThread.ManagedThreadId}");
+        }
 
-			Sleep(TimeSpan.FromSeconds(2));
-		}
-
-		private delegate string RunOnThreadPool(out int threadId);
-
-		private static void Callback(IAsyncResult ar)
-		{
-			WriteLine("Starting a callback...");
-			WriteLine($"State passed to a callbak: {ar.AsyncState}");
-			WriteLine($"Is thread pool thread: {CurrentThread.IsThreadPoolThread}");
-			WriteLine($"Thread pool worker thread id: {CurrentThread.ManagedThreadId}");
-		}
-
-
-		private static string Test(out int threadId)
-		{
-			WriteLine("Starting...");
-			WriteLine($"Is thread pool thread: {CurrentThread.IsThreadPoolThread}");
-			Sleep(TimeSpan.FromSeconds(2));
-			threadId = CurrentThread.ManagedThreadId;
-			return $"Thread pool worker thread id was: {threadId}";
-		}
-	}
+        private static string Test(out int threadId)
+        {
+            Console.WriteLine("Starting...");
+            Console.WriteLine($"Is thread pool thread: {Thread.CurrentThread.IsThreadPoolThread}");
+            Thread.Sleep(TimeSpan.FromSeconds(2));
+            threadId = Thread.CurrentThread.ManagedThreadId;
+            return $"Thread pool worker thread id was: {threadId}";
+        }
+    }
 }
